@@ -1,0 +1,39 @@
+name: Generate ASCII Art
+on: push
+
+jobs:
+    first_job:
+        runs-on: ubuntu-latest
+        steps:
+          
+        - name: CheckoutRepo
+          uses: actions/checkout@v6
+
+        - name: Install cowsay
+          run: sudo apt-get install cowsay
+
+        - name: Execute cowsay commands
+          run: cowsay -f dragon "Hello World!"
+
+        - name: GREP dragon file
+          run: grep "dragon" -r .
+
+        - name: Read dragon file
+          run: cat dragon.txt
+
+        # - name: List and Read files
+        #   run:
+        #      echo "My first Github action"
+        #      ls -la
+        #      cat README.md
+
+        # - name: Genarate ASCII art
+        #   run: cowsay -f dragon "Hello World!" >> dragon.txt
+
+
+        # - name: List files
+        #   run: ls
+
+        # - name: Read file
+        #   run: cat README.md
+      
