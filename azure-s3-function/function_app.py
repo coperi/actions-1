@@ -3,6 +3,10 @@ Azure Function – S3 file retrieval via STS AssumeRoleWithWebIdentity.
 
 Endpoints
 ---------
+GET /api/token-info
+    Decode and return the Azure AD token claims this function generates.
+    Use this to find the stable `sub` value for the AWS trust policy.
+
 GET /api/s3/list?prefix=<optional>
     List objects in the configured S3 bucket.
 
@@ -18,9 +22,43 @@ import logging
 import azure.functions as func
 import sts_client
 import s3_client
+import token_utils
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Token info – call this once to find the stable `sub` for the AWS trust policy
+# ---------------------------------------------------------------------------
+
+@app.route(route="token-info", methods=["GET"])
+def token_info(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Return the decoded Azure AD token claims produced by this function.
+
+    The `sub` field shown here is exactly what AWS STS receives as the
+    web identity token subject.  For app-only tokens (token_type == "app-only")
+    sub == oid, which is the Service Principal Object ID and never changes.
+    Copy that value into your AWS trust policy:
+        "sts.amazonaws.com:sub": "<value of sub shown here>"
+    """
+    try:
+        _, claims = sts_client.get_azure_token()
+    except Exception as exc:
+        logger.exception("Failed to obtain Azure token")
+        return func.HttpResponse(
+            json.dumps({"error": str(exc)}),
+            status_code=502,
+            mimetype="application/json",
+        )
+
+    info = token_utils.stable_subject_info(claims)
+    return func.HttpResponse(
+        json.dumps(info, indent=2),
+        status_code=200,
+        mimetype="application/json",
+    )
 
 
 def _assume_or_error() -> tuple[dict | None, func.HttpResponse | None]:
